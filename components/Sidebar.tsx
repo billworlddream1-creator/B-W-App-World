@@ -7,11 +7,14 @@ interface SidebarProps {
   currentView: AppView;
   setView: (view: AppView) => void;
   userRole: 'user' | 'admin';
+  cycleTheme?: () => void;
+  themeName?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, userRole }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, userRole, cycleTheme, themeName }) => {
   const menuItems = [
     { id: 'dashboard', icon: 'fa-solid fa-grid-2', label: 'Dashboard' },
+    { id: 'feed', icon: 'fa-solid fa-sparkles', label: 'Artisan Feed' },
     { id: 'academy', icon: 'fa-solid fa-graduation-cap', label: 'Academy' },
     { id: 'tts', icon: 'fa-solid fa-waveform-lines', label: 'Voice Lab' },
     { id: 'image', icon: 'fa-solid fa-camera-retro', label: 'Image Forge' },
@@ -53,6 +56,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, userRole }) => 
           </button>
         ))}
       </nav>
+
+      {/* Mood Swapper */}
+      <div className="px-6 pb-4">
+        <button 
+          onClick={cycleTheme}
+          className="w-full flex items-center justify-between p-4 glass-morphism rounded-2xl border-white/5 hover:border-accent-color/40 transition-all group"
+        >
+           <div className="flex flex-col items-start">
+             <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Workspace Mood</span>
+             <span className="text-[10px] font-bold text-white uppercase">{themeName}</span>
+           </div>
+           <i className="fa-solid fa-rotate accent-text group-hover:rotate-180 transition-transform duration-500"></i>
+        </button>
+      </div>
 
       <div className="p-6">
         <div className="p-5 rounded-[2rem] border border-white/10 relative overflow-hidden group bg-gradient-to-br from-white/5 to-transparent">

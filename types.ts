@@ -1,5 +1,5 @@
 
-export type AppView = 'dashboard' | 'tts' | 'image' | 'video' | 'history' | 'pricing' | 'admin' | 'login' | 'academy' | 'ppt';
+export type AppView = 'dashboard' | 'tts' | 'image' | 'video' | 'history' | 'pricing' | 'admin' | 'login' | 'academy' | 'ppt' | 'feed';
 
 export interface AdminMessage {
   id: string;
@@ -35,7 +35,7 @@ export interface GenerationHistory {
   id: string;
   type: 'audio' | 'image' | 'video' | 'presentation';
   prompt: string;
-  url: string; // For PPT, this could be a data URI or a preview string
+  url: string; 
   timestamp: number;
   metadata?: any;
 }
@@ -44,6 +44,7 @@ export interface Slide {
   title: string;
   content: string[];
   visualDirective: string;
+  generatedImageUrl?: string; // Cache for generated slide visuals
 }
 
 export interface PresentationDeck {

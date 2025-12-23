@@ -13,6 +13,7 @@ import PricingPage from './pages/Pricing';
 import AdminPage from './pages/Admin';
 import LoginPage from './pages/Login';
 import Academy from './pages/Academy';
+import ArtisanFeed from './pages/ArtisanFeed';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 import GlobalFooter from './components/GlobalFooter';
@@ -20,6 +21,7 @@ import WorkNavigator from './components/WorkNavigator';
 
 const WORK_SEQUENCE: AppView[] = [
   'dashboard',
+  'feed',
   'academy',
   'tts',
   'image',
@@ -54,12 +56,9 @@ const App: React.FC = () => {
 
   const [view, setView] = useState<AppView>(state.user ? 'dashboard' : 'login');
 
-  // Keyboard Shortcuts for Workspace Switching
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!state.user || view === 'login') return;
-      
-      // Don't trigger if user is typing in an input or textarea
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
 
       const currentIndex = WORK_SEQUENCE.indexOf(view);
@@ -78,7 +77,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [view, state.user]);
 
-  // Daily Sync Logic
   useEffect(() => {
     const syncDailyContent = async () => {
       const today = new Date().toISOString().split('T')[0];
@@ -137,13 +135,10 @@ const App: React.FC = () => {
 
   const handleLogin = (user: User, refCode?: string) => {
     const today = new Date().toISOString().split('T')[0];
-    const dayOfYear = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
     const timestamp = Date.now();
     let updatedUser = { ...user, lastLoginTimestamp: timestamp };
-
     const existingUser = state.allUsers.find(u => u.email === user.email);
     
-    // Pick salutation
     let salutation = "";
     if (existingUser && existingUser.lastLoginDateString) {
       salutation = RETURNING_USER_SALUTATIONS[Math.floor(Math.random() * RETURNING_USER_SALUTATIONS.length)];
@@ -180,21 +175,14 @@ const App: React.FC = () => {
       updatedUser.lastLoginDateString = today;
     }
 
-    setState(prev => {
-      const uExists = prev.allUsers.find(u => u.email === user.email);
-      const newAllUsers = uExists 
+    setState(prev => ({ 
+      ...prev, 
+      user: updatedUser, 
+      allUsers: prev.allUsers.find(u => u.email === user.email) 
         ? prev.allUsers.map(u => u.email === user.email ? updatedUser : u)
-        : [...prev.allUsers, updatedUser];
-      
-      return { 
-        ...prev, 
-        user: updatedUser, 
-        allUsers: newAllUsers,
-        currentSalutation: salutation,
-        themeIndex: dayOfYear % THEME_ACCENTS.length
-      };
-    });
-    
+        : [...prev.allUsers, updatedUser],
+      currentSalutation: salutation
+    }));
     setView('dashboard');
   };
 
@@ -216,61 +204,11 @@ const App: React.FC = () => {
     }));
   };
 
-  const updateSettings = (settings: AppState['systemSettings']) => {
-    setState(prev => ({ ...prev, systemSettings: settings }));
-  };
-
-  const sendMessage = (toUserId: string, content: string) => {
-    const newMessage: AdminMessage = {
-      id: Math.random().toString(36).substr(2, 6),
-      toUserId,
-      from: 'B&W Artifi Support',
-      content,
-      timestamp: Date.now(),
-      read: false
-    };
-    setState(prev => ({ ...prev, messages: [newMessage, ...prev.messages] }));
-  };
-
-  const addUser = (userData: Partial<User>) => {
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 6),
-      name: userData.name || 'Artisan Creator',
-      email: userData.email || '',
-      role: 'user',
-      credits: state.systemSettings.freeLimit,
-      maxCredits: state.systemSettings.freeLimit,
-      plan: 'free',
-      lastLoginDateString: '',
-      referralCode: Math.random().toString(36).substr(2, 6).toUpperCase(),
-      referralCount: 0,
-      referralCreditsEarned: 0
-    };
-    setState(prev => ({ ...prev, allUsers: [...prev.allUsers, newUser] }));
-  };
-
-  const clearAllHistory = () => {
-    if (confirm('Erase all synthetic memory?')) {
-      setState(prev => ({ ...prev, history: [] }));
-    }
-  };
-
-  const upgradePlan = (planId: string) => {
-    if (!state.user) return;
-    const plan = PRICING_PLANS.find(p => p.id === planId);
-    if (!plan) return;
-
+  const cycleTheme = () => {
     setState(prev => ({
       ...prev,
-      user: prev.user ? {
-        ...prev.user,
-        plan: plan.id as any,
-        credits: plan.credits,
-        maxCredits: plan.credits
-      } : null
+      themeIndex: (prev.themeIndex + 1) % THEME_ACCENTS.length
     }));
-    setView('dashboard');
-    alert(`Node upgraded to ${plan.name} status.`);
   };
 
   const renderContent = () => {
@@ -284,20 +222,33 @@ const App: React.FC = () => {
         image: state.history.filter(h => h.type === 'image').length,
         video: state.history.filter(h => h.type === 'video').length,
       }} themeName={THEME_ACCENTS[state.themeIndex].name} dailyShowcase={state.dailyShowcase} />;
+      case 'feed': return <ArtisanFeed setView={setView} />;
       case 'academy': return <Academy />;
       case 'tts': return <TTSPage user={state.user} onGenerate={addHistory} settings={state.systemSettings} />;
       case 'image': return <ImageGenPage user={state.user} onGenerate={addHistory} settings={state.systemSettings} />;
       case 'video': return <VideoGenPage user={state.user} onGenerate={addHistory} settings={state.systemSettings} />;
       case 'ppt': return <PresentationPage user={state.user} onGenerate={addHistory} />;
       case 'history': return <HistoryPage history={state.history} />;
-      case 'pricing': return <PricingPage onUpgrade={upgradePlan} currentPlan={state.user.plan || 'free'} />;
+      case 'pricing': return <PricingPage onUpgrade={(pid) => {
+        const p = PRICING_PLANS.find(x => x.id === pid);
+        if (p && state.user) {
+          setState(prev => ({ ...prev, user: { ...prev.user!, plan: p.id, credits: p.credits, maxCredits: p.credits } }));
+          setView('dashboard');
+        }
+      }} currentPlan={state.user.plan || 'free'} />;
       case 'admin': return (
         <AdminPage 
           state={state} 
-          onUpdateSettings={updateSettings} 
-          onClearHistory={clearAllHistory}
-          onSendMessage={sendMessage}
-          onAddUser={addUser}
+          onUpdateSettings={(s) => setState(prev => ({ ...prev, systemSettings: s }))} 
+          onClearHistory={() => setState(prev => ({ ...prev, history: [] }))}
+          onSendMessage={(uid, c) => {
+             const m = { id: Math.random().toString(36).substr(2,6), toUserId: uid, from: 'B&W Admin', content: c, timestamp: Date.now(), read: false };
+             setState(prev => ({ ...prev, messages: [m, ...prev.messages] }));
+          }}
+          onAddUser={(ud) => {
+            const nu = { id: Math.random().toString(36).substr(2,6), name: ud.name || 'Artisan', email: ud.email || '', role: 'user', credits: 80, maxCredits: 80, plan: 'free', referralCode: 'REF', referralCount: 0, referralCreditsEarned: 0 } as User;
+            setState(prev => ({ ...prev, allUsers: [...prev.allUsers, nu] }));
+          }}
         />
       );
       default: return <Dashboard setView={setView} user={state.user} stats={{total: 0, audio: 0, image: 0, video: 0}} themeName={THEME_ACCENTS[state.themeIndex].name} />;
@@ -313,7 +264,13 @@ const App: React.FC = () => {
         </div>
       )}
       
-      <Sidebar currentView={view} setView={setView} userRole={state.user?.role || 'user'} />
+      <Sidebar 
+        currentView={view} 
+        setView={setView} 
+        userRole={state.user?.role || 'user'} 
+        cycleTheme={cycleTheme}
+        themeName={THEME_ACCENTS[state.themeIndex].name}
+      />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar 
